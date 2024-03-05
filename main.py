@@ -41,7 +41,6 @@ if uploaded_file is not None:
     df_G2_G2 = similar_cell_cycle[similar_cell_cycle["cell cycle"] == "G2"]
     df_S_S = similar_cell_cycle[similar_cell_cycle["cell cycle"] == "S"]
 
-    st.markdown("""---""")
     st.write("**Cells with similar nuclear cell cycle**")
     st.write("Cells with double G1/G1 nuclear cell cycle: %.1f%% (%.1f%%)" %(df_G1_G1.shape[0]/df_2_nuclear.shape[0]*100, df_G1_G1.shape[0]/similar_cell_cycle.shape[0]*100)) 
     st.write("Cells with double G2/G2 nuclear cell cycle: %.1f%% (%.1f%%)" %(df_G2_G2.shape[0]/df_2_nuclear.shape[0]*100, df_G2_G2.shape[0]/similar_cell_cycle.shape[0]*100)) 
