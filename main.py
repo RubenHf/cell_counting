@@ -76,9 +76,10 @@ if uploaded_file is not None:
         mask_S = mask_df[mask_df[cell_info] == "S"]
 
         st.write("**Nuclei cell cycle**")
-        st.write("Nuclei in G1: %.1f%% (%.1f%%)" %(mask_G1.shape[0]/mask_df.shape[0]*100, mask_G1.shape[0]/df.shape[0]*100)) 
-        st.write("Nuclei in G2: %.1f%% (%.1f%%)" %(mask_G2.shape[0]/mask_df.shape[0]*100, mask_G2.shape[0]/df.shape[0]*100)) 
-        st.write("Nuclei in S: %.1f%% (%.1f%%)" %(mask_S.shape[0]/mask_df.shape[0]*100, mask_S.shape[0]/df.shape[0]*100)) 
+        st.write("Nuclei in G1: %.1f%% (%.1f%% total)" %(mask_G1.shape[0]/mask_df.shape[0]*100, mask_G1.shape[0]/df.shape[0]*100)) 
+        st.write("Nuclei in G2: %.1f%% (%.1f%% total)" %(mask_G2.shape[0]/mask_df.shape[0]*100, mask_G2.shape[0]/df.shape[0]*100)) 
+        st.write("Nuclei in S: %.1f%% (%.1f%% total)" %(mask_S.shape[0]/mask_df.shape[0]*100, mask_S.shape[0]/df.shape[0]*100)) 
+        st.markdown("""---""")
         
         if nuclei_choice == 2:
 
