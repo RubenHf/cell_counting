@@ -92,12 +92,14 @@ if uploaded_file is not None:
         mask_G1 = mask_df[mask_df[cell_info] == "G1"]
         mask_G2 = mask_df[mask_df[cell_info] == "G2"]
         mask_S = mask_df[mask_df[cell_info] == "S"]
+        mask_others = mask_df[~mask_df[cell_info].isin(["G1", "G2", "S"])]
 
         st.write("**Nuclei cell cycle distribution**")
         try:
             st.write("Nuclei in G1: %.1f%% (%.1f%% total)" %(mask_G1.shape[0]/mask_df.shape[0]*100, mask_G1.shape[0]/df.shape[0]*100)) 
             st.write("Nuclei in G2: %.1f%% (%.1f%% total)" %(mask_G2.shape[0]/mask_df.shape[0]*100, mask_G2.shape[0]/df.shape[0]*100)) 
             st.write("Nuclei in S: %.1f%% (%.1f%% total)" %(mask_S.shape[0]/mask_df.shape[0]*100, mask_S.shape[0]/df.shape[0]*100)) 
+            st.write("Nuclei not in G1/G2/S: %.1f%% (%.1f%% total)" %(mask_others.shape[0]/mask_df.shape[0]*100, mask_others.shape[0]/df.shape[0]*100)) 
         except ZeroDivisionError:
             # Handle the case where division by zero occurs
             st.error("No cells in this condition")
@@ -108,17 +110,19 @@ if uploaded_file is not None:
         g1_mask_df = mask_df.loc[mask_df[cell_info] == "G1", ["Parent Object ID (MO)", cell_info]]
         g2_mask_df = mask_df.loc[mask_df[cell_info] == "G2", ["Parent Object ID (MO)", cell_info]]
         s_mask_df = mask_df.loc[mask_df[cell_info] == "S", ["Parent Object ID (MO)", cell_info]]
+        others_mask_df = mask_df.loc[~mask_df[cell_info].isin(["G1", "G2", "S"]), ["Parent Object ID (MO)", cell_info]]
 
         # Group by "Parent Object ID (MO)" and count occurrences of "G1", "G2", "S"
         g1_counts = g1_mask_df.groupby("Parent Object ID (MO)").count().reset_index()
         g2_counts = g2_mask_df.groupby("Parent Object ID (MO)").count().reset_index()
         s_counts = s_mask_df.groupby("Parent Object ID (MO)").count().reset_index()
+        others_counts = others_mask_df.groupby("Parent Object ID (MO)").count().reset_index()
 
         # Create a DataFrame with unique "Parent Object ID (MO)"
         df_count = pd.DataFrame(mask_df["Parent Object ID (MO)"].unique(), columns=["Parent Object ID (MO)"])
 
         # Join the count of "G1", "G2", "S" occurrences
-        for c_counts, c_counts_col in zip([g1_counts, g2_counts, s_counts], ["G1_count", "G2_count", "S_count"]):
+        for c_counts, c_counts_col in zip([g1_counts, g2_counts, s_counts, others_counts], ["G1_count", "G2_count", "S_count", "others_count"]):
             df_count = df_count.merge(c_counts, how="left")
             
             # Rename the column
@@ -134,7 +138,8 @@ if uploaded_file is not None:
         sync_G1_count = df_count[df_count["G1_count"] == nuclei_choice].shape[0]
         sync_G2_count = df_count[df_count["G2_count"] == nuclei_choice].shape[0]
         sync_S_count = df_count[df_count["S_count"] == nuclei_choice].shape[0]
-        total_synchronized = sync_G1_count + sync_G2_count + sync_S_count
+        sync_others_count = df_count[df_count["others_count"] == nuclei_choice].shape[0]
+        total_synchronized = sync_G1_count + sync_G2_count + sync_S_count + sync_others_count
 
         st.write(f"**Cells with synchronized nucleis ({total_synchronized/df_count.shape[0]:.1%})**")
         
@@ -142,6 +147,7 @@ if uploaded_file is not None:
             st.write("Nuclei in G1: %.1f%%" %(sync_G1_count/df_count.shape[0]*100)) 
             st.write("Nuclei in G2: %.1f%%" %(sync_G2_count/df_count.shape[0]*100)) 
             st.write("Nuclei in S: %.1f%%" %(sync_S_count/df_count.shape[0]*100)) 
+            st.write("Nuclei in others: %.1f%%" %(sync_others_count/df_count.shape[0]*100)) 
         except ZeroDivisionError:
             # Handle the case where division by zero occurs
             st.error("No cells in this condition")
@@ -151,21 +157,24 @@ if uploaded_file is not None:
         st.write(f"**Cells with asynchronized nucleis ({1 - (total_synchronized/df_count.shape[0]):.1%})**")
 
         # We select the cell with asynchronous nucleis
-        async_count = df_count[(df_count["G1_count"] != nuclei_choice) & (df_count["G2_count"] != nuclei_choice) & (df_count["S_count"] != nuclei_choice)]
+        async_count = df_count[(df_count["G1_count"] != nuclei_choice) & (df_count["G2_count"] != nuclei_choice) & (df_count["S_count"] != nuclei_choice) & (df_count["others_count"] != nuclei_choice)]
         # We calculate the proportion for each
-        async_count.loc[:, ["G1_count", "G2_count", "S_count"]] = async_count.loc[:, ["G1_count", "G2_count", "S_count"]] / nuclei_choice
+        async_count.loc[:, ["G1_count", "G2_count", "S_count", "others_count"]] = async_count.loc[:, ["G1_count", "G2_count", "S_count", "others_count"]] / nuclei_choice
         # We measure the mean and standard deviation
         async_G1_mean = async_count["G1_count"].mean()
         async_G1_std = async_count["G1_count"].std()
         async_G2_mean = async_count["G2_count"].mean()
-        async_G2_std = async_count["G2_count"].mean()
-        async_S_mean = async_count["S_count"].std()
-        async_S_std = async_count["S_count"].mean()
+        async_G2_std = async_count["G2_count"].std()
+        async_S_mean = async_count["S_count"].mean()
+        async_S_std = async_count["S_count"].std()
+        async_others_mean = async_count["others_count"].mean()
+        async_others_std = async_count["others_count"].std()
         
         try:
             st.write(f"Proportion of nuclei in G1: {async_G1_mean:.1%} ± {async_G1_std:.1%}") 
             st.write(f"Proportion of nuclei in G2: {async_G2_mean:.1%} ± {async_G2_std:.1%}") 
             st.write(f"Proportion of nuclei in S: {async_S_mean:.1%} ± {async_S_std:.1%}") 
+            st.write(f"Proportion of nuclei in others: {async_others_mean:.1%} ± {async_others_std:.1%}") 
         except ZeroDivisionError:
             # Handle the case where division by zero occurs
             st.error("No cells in this condition")
@@ -178,14 +187,17 @@ if uploaded_file is not None:
         enrich_G1_mean = (df_count/nuclei_choice)["G1_count"].mean()
         enrich_G1_std = (df_count/nuclei_choice)["G1_count"].std()
         enrich_G2_mean = (df_count/nuclei_choice)["G2_count"].mean()
-        enrich_G2_std = (df_count/nuclei_choice)["G2_count"].mean()
-        enrich_S_mean = (df_count/nuclei_choice)["S_count"].std()
-        enrich_S_std = (df_count/nuclei_choice)["S_count"].mean()
+        enrich_G2_std = (df_count/nuclei_choice)["G2_count"].std()
+        enrich_S_mean = (df_count/nuclei_choice)["S_count"].mean()
+        enrich_S_std = (df_count/nuclei_choice)["S_count"].std()
+        enrich_others_mean = (df_count/nuclei_choice)["others_count"].mean()
+        enrich_others_std = (df_count/nuclei_choice)["others_count"].std()
         
         try:
             st.write(f"Proportion of nuclei in G1: {enrich_G1_mean:.1%} ± {enrich_G1_std:.1%}") 
             st.write(f"Proportion of nuclei in G2: {enrich_G2_mean:.1%} ± {enrich_G2_std:.1%}") 
             st.write(f"Proportion of nuclei in S: {enrich_S_mean:.1%} ± {enrich_S_std:.1%}") 
+            st.write(f"Proportion of nuclei in others: {enrich_others_mean:.1%} ± {enrich_others_std:.1%}") 
         except ZeroDivisionError:
             # Handle the case where division by zero occurs
             st.error("No cells in this condition")
