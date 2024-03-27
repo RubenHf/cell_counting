@@ -97,12 +97,16 @@ if uploaded_file is not None:
             index=None,
             placeholder="Select experiments...")
         
-        # User select the experiment condition he wants to see
-        experiment_compare = st.selectbox(
-            "Condition to compare with:",
-            (sorted(df[experiment_column].unique())),
-            index=None,
-            placeholder="Select experiments...")
+        # We select a experiment to compare if a reference has been chosen
+        if experiment_reference:
+            # User select the experiment condition he wants to see
+            experiment_compare = st.selectbox(
+                "Condition to compare with:",
+                (sorted(df[experiment_column].unique())),
+                index=None,
+                placeholder="Select experiments...")
+        else:
+            experiment_compare = None
         
         st.markdown("""---""")
         
@@ -207,10 +211,11 @@ if uploaded_file is not None:
             color = "green" if total_synchronized_comp_pourc >= total_synchronized_ref_pourc else "red"
 
             st.write(f"**Cells with synchronized nucleis (:{color}[{total_synchronized_comp_pourc:.1%}] VS {total_synchronized_ref_pourc:.1%})**")
+
+        else: 
+            st.write(f"**Cells with synchronized nucleis ({total_synchronized_ref_pourc:.1%})**")
         
         #########################################################
-        else: 
-            st.write(f"**Cells with synchronized nucleis ({total_synchronized_ref:.1%})**")
         
         for cell_step in cell_steps:
 
@@ -241,66 +246,104 @@ if uploaded_file is not None:
 
         st.markdown("""---""")
 
-        st.write(f"**Cells with asynchronized nucleis ({1 - (total_synchronized_ref/df_count_ref.shape[0]):.1%})**")
-
         # Initialize the condition string
-        condition = ""
+        condition_ref = ""
         
         # Construct the condition string dynamically
         for cell_step in cell_steps:
-            condition += f"(df_count_ref['{cell_step + '_count'}'] != {nuclei_choice}) & "
+            condition_ref += f"(df_count_ref['{cell_step + '_count'}'] != {nuclei_choice}) & "
         
         # Remove the trailing ' & ' from the condition string
-        condition = condition[:-3]
+        condition_ref = condition_ref[:-3]
         
         # Apply the condition and select the cell with asynchronous nucleis
-        async_count_df = df_count_ref[eval(condition)]
+        async_count_df_ref = df_count_ref[eval(condition_ref)]
+
+        # Proportion
+        async_count_df_ref_pourc = async_count_df_ref.shape[0]/df_count_ref.shape[0]
+
+        if isinstance(mask_df_comp, pd.DataFrame):
+            condition_comp = ""
+        
+            # Construct the condition string dynamically
+            for cell_step in cell_steps:
+                condition_comp += f"(df_count_comp['{cell_step + '_count'}'] != {nuclei_choice}) & "
+            
+            # Remove the trailing ' & ' from the condition string
+            condition_comp = condition_comp[:-3]
+            
+            # Apply the condition and select the cell with asynchronous nucleis
+            async_count_df_comp = df_count_comp[eval(condition_comp)]
+
+            # Proportion
+            async_count_df_comp_pourc = async_count_df_comp.shape[0]/df_count_comp.shape[0]
+
+            # Determine color based on comparison
+            color = "green" if async_count_df_comp_pourc >= async_count_df_ref_pourc else "red"
+
+            st.write(f"**Cells with asynchronized nucleis (:{color}[{async_count_df_comp_pourc:.1%}] VS {async_count_df_ref_pourc:.1%})**")
+
+        else: 
+            st.write(f"**Cells with asynchronized nucleis ({async_count_df_ref_pourc:.1%})**")
 
         for cell_step in cell_steps:
-
-            # We calculate the proportion for each
-            async_count_df.loc[:, [cell_step + "_count"]] = async_count_df.loc[:, [cell_step + "_count"]] / nuclei_choice
-            # We measure the mean and standard deviation
-            async_cell_step_mean = async_count_df[cell_step + "_count"].mean()
-            async_cell_step_std = async_count_df[cell_step + "_count"].std()
-            
             try:
-                st.write(f"Proportion of nuclei in {cell_step}: {async_cell_step_mean:.1%} ± {async_cell_step_std:.1%}") 
-            except ZeroDivisionError:
-                # Handle the case where division by zero occurs
-                st.error("No cells in this condition")
-
-        #########################################################
+                # We calculate the proportion for each
+                async_count_df_ref.loc[:, [cell_step + "_count"]] = async_count_df_ref.loc[:, [cell_step + "_count"]] / nuclei_choice
                 
-        st.markdown("""---""")
-
-        st.write(f"**Enrichment of cell cycle /// similar to first stat**")
-
-        for cell_step in cell_steps:
-            
-            try:
                 # We measure the mean and standard deviation
-                enrich_cell_step_ref_mean = (df_count_ref/nuclei_choice)[cell_step + "_count"].mean()
-                enrich_cell_step_ref_std = (df_count_ref/nuclei_choice)[cell_step + "_count"].std()
+                async_cell_step_ref_mean = async_count_df_ref[cell_step + "_count"].mean()
+                async_cell_step_ref_std = async_count_df_ref[cell_step + "_count"].std()
 
                 if isinstance(mask_df_comp, pd.DataFrame):
-                    enrich_cell_step_comp_mean = (df_count_comp/nuclei_choice)[cell_step + "_count"].mean()
-                    enrich_cell_step_comp_std = (df_count_comp/nuclei_choice)[cell_step + "_count"].std()
+                    async_count_df_comp.loc[:, [cell_step + "_count"]] = async_count_df_comp.loc[:, [cell_step + "_count"]] / nuclei_choice
+                    # We measure the mean and standard deviation
+                    async_cell_step_comp_mean = async_count_df_comp[cell_step + "_count"].mean()
+                    async_cell_step_comp_std = async_count_df_comp[cell_step + "_count"].std()
 
                     # Determine color based on comparison
-                    color = "green" if enrich_cell_step_comp_mean >= enrich_cell_step_ref_mean else "red"
+                    color = "green" if async_cell_step_comp_mean >= async_cell_step_ref_mean else "red"
 
-                    st.write(f"""Proportion of nuclei in {cell_step}: :{color}[{enrich_cell_step_comp_mean:.1%}] ± :{color}[{enrich_cell_step_comp_std:.1%}]
-                              VS {enrich_cell_step_ref_mean:.1%} ± {enrich_cell_step_ref_std:.1%}""") 
+                    st.write(f"""Proportion of nuclei in {cell_step}: :{color}[{async_cell_step_comp_mean:.1%}] ± :{color}[{async_cell_step_comp_std:.1%}] 
+                             VS {async_cell_step_ref_mean:.1%} ± {async_cell_step_ref_std:.1%}""")
+                
                 else:
-                    st.write(f"Proportion of nuclei in {cell_step}: {enrich_cell_step_ref_mean:.1%} ± {enrich_cell_step_ref_std:.1%}") 
+                    st.write(f"Proportion of nuclei in {cell_step}: {async_cell_step_ref_mean:.1%} ± {async_cell_step_ref_std:.1%}") 
             except ZeroDivisionError:
                 # Handle the case where division by zero occurs
                 st.error("No cells in this condition")
-
-        #########################################################
                 
         st.markdown("""---""")
+
+        #########################################################
+        
+        # st.write(f"**Enrichment of cell cycle /// similar to first stat**")
+
+        # for cell_step in cell_steps:
+            
+        #     try:
+        #         # We measure the mean and standard deviation
+        #         enrich_cell_step_ref_mean = (df_count_ref/nuclei_choice)[cell_step + "_count"].mean()
+        #         enrich_cell_step_ref_std = (df_count_ref/nuclei_choice)[cell_step + "_count"].std()
+
+        #         if isinstance(mask_df_comp, pd.DataFrame):
+        #             enrich_cell_step_comp_mean = (df_count_comp/nuclei_choice)[cell_step + "_count"].mean()
+        #             enrich_cell_step_comp_std = (df_count_comp/nuclei_choice)[cell_step + "_count"].std()
+
+        #             # Determine color based on comparison
+        #             color = "green" if enrich_cell_step_comp_mean >= enrich_cell_step_ref_mean else "red"
+
+        #             #st.write(f"Proportion of nuclei in {cell_step}: :{color}[{enrich_cell_step_comp_mean:.1%}] ± :{color}[{enrich_cell_step_comp_std:.1%}]
+        #              #         VS {enrich_cell_step_ref_mean:.1%} ± {enrich_cell_step_ref_std:.1%}") 
+        #         else:
+        #             st.write(f"Proportion of nuclei in {cell_step}: {enrich_cell_step_ref_mean:.1%} ± {enrich_cell_step_ref_std:.1%}") 
+        #     except ZeroDivisionError:
+        #         # Handle the case where division by zero occurs
+        #         st.error("No cells in this condition")
+    
+        #########################################################
+                
+        #st.markdown("""---""")
 
 
         
